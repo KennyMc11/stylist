@@ -1,0 +1,49 @@
+venv/
+.venv
+.pylintrc
+__pycache__
+
+images
+team_images
+
+bot copy.py
+test.py
+
+stylist_bot.*
+
+parsed_data
+events.csv
+
+events.json
+events.csv
+
+.vscode
+.idea
+
+TELEGRAM_SETUP.md
+db.sqlite3
+sports_data.db
+
+# Логи
+*.log
+logs/
+posting_log.json
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+*.exe
