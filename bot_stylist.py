@@ -25,11 +25,21 @@ logger = logging.getLogger(__name__)
 # Константы
 EVENTS = {
     'official': '👔 Официальное',
+    'interview': '🤝 Собеседование',
     'office': '💼 Офис',
+    'study': '📚 Учеба',
     'walk': '🚶 Прогулка',
-    'sport': '🏃 Спорт',
+    'sport_outdoor': '🏃 Спорт на улице',
+    'sport_indoor': '🏋️‍♂️ Спорт в зале',
     'date': '❤️ Свидание',
     'party': '🎉 Вечеринка',
+    'cinema': '🎬 Кино',
+    'theater': '🎭 Театр',
+    'concert': '🎸 Концерт',
+    'museum': '🏛️ Музей / Выставка',
+    'restaurant': '🍽️ Ресторан',
+    'bar': '🍷 Бар',
+    'family_dinner': '👪 Семейный ужин',
     'home': '🏠 Дом',
     'shopping': '🛍️ Шопинг'
 }
@@ -61,7 +71,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "👋 С возвращением! Я всегда готов помочь с выбором образа.\n"
             "Просто напиши мне, что планируешь, и я помогу подобрать идеальный лук!",
-            reply_markup=MAIN_KEYBOARD
+            reply_markup=MAIN_KEYBOARD,
+            parse_mode=ParseMode.HTML
         )
         # Включаем режим диалога по умолчанию
         context.user_data['chat_mode'] = True
@@ -72,13 +83,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
         
         await update.message.reply_text(
-            "👋 Привет! Я твой личный стилист. Буду помогать тебе с образами в режиме диалога.\n\n"
+            "👋 Привет!\n Я твой личный стилист.\nМеня зовут Светлана)\nЯ помогу тебе с образом на все случаи жизни.\n\n"
             "Расскажи о себе в одном сообщении:\n"
             "• Имя\n"
             "• Возраст\n"
-            "• Город\n\n"
-            "Пример: *Анна, 28 лет, Москва*",
-            parse_mode=ParseMode.MARKDOWN
+            "• Город\n\n",
+            parse_mode=ParseMode.HTML
         )
 
 async def handle_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -135,13 +145,14 @@ async def handle_registration(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"Пол: {gender_text}\n\n"
             f"Теперь мы можем общаться! Просто напиши, куда планируешь пойти, "
             f"и я помогу подобрать образ. Или нажми кнопку ниже:",
-            reply_markup=MAIN_KEYBOARD
+            reply_markup=MAIN_KEYBOARD,
+            parse_mode=ParseMode.HTML
         )
         # Включаем режим диалога
         context.user_data['chat_mode'] = True
     else:
         next_q = result.get('next_question') or "Уточните, пожалуйста:"
-        await update.message.reply_text(next_q)
+        await update.message.reply_text(next_q, parse_mode=ParseMode.HTML)
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка кнопок"""
@@ -159,7 +170,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Показываем выбор мероприятий
         await query.message.reply_text(
             "Выбери мероприятие:",
-            reply_markup=EVENTS_KEYBOARD
+            reply_markup=EVENTS_KEYBOARD,
+            parse_mode=ParseMode.HTML
         )
         
     elif query.data.startswith("event_"):
@@ -200,13 +212,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await progress_msg.delete()
         await query.message.reply_text(
             response,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
         
         # Спрашиваем, нужна ли помощь
         await query.message.reply_text(
             "💬 Что думаешь? Можешь задать вопросы по образу или попросить другой вариант.",
-            reply_markup=MAIN_KEYBOARD
+            reply_markup=MAIN_KEYBOARD,
+            parse_mode=ParseMode.HTML
         )
         
         # Сохраняем контекст
@@ -250,33 +263,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     # Отправляем ответ
-    await update.message.reply_text(response)
+    await update.message.reply_text(response, parse_mode=ParseMode.HTML)
     
     # Если это был запрос на подбор образа, показываем кнопки с мероприятиями
-    if any(word in update.message.text.lower() for word in ['образ', 'подбери', 'лук', 'одеть', 'надеть', 'пойти']):
+    if any(word in update.message.text.lower() for word in ['образ', 'подбери', 'подобрать', 'составь', 'скомбинируй', 'выглядеть', 'лук', 'одеть', 'надеть', 'пойти', 'в чем']):
         await update.message.reply_text(
             "Какое мероприятие планируешь?",
-            reply_markup=EVENTS_KEYBOARD
+            reply_markup=EVENTS_KEYBOARD,
+            parse_mode=ParseMode.HTML
         )
     else:
         # В остальных случаях просто показываем основную кнопку
         await update.message.reply_text(
             "Если захочешь подобрать образ, просто нажми кнопку ниже:",
-            reply_markup=MAIN_KEYBOARD
+            reply_markup=MAIN_KEYBOARD,
+            parse_mode=ParseMode.HTML
         )
 
 async def exit_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда выхода (оставляем для совместимости)"""
     await update.message.reply_text(
-        "Режим диалога всегда активен! Просто продолжай общаться.",
-        reply_markup=MAIN_KEYBOARD
+        "Готова ответить на твои вопросы!",
+        reply_markup=MAIN_KEYBOARD,
+        parse_mode=ParseMode.HTML
     )
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /menu"""
     await update.message.reply_text(
         "Чем могу помочь?",
-        reply_markup=MAIN_KEYBOARD
+        reply_markup=MAIN_KEYBOARD,
+        parse_mode=ParseMode.HTML
     )
 
 async def post_init(application: Application):
