@@ -135,7 +135,7 @@ class AIStylist:
         
         gender_word = "мужчины" if user_data.get('gender') == 'male' else "женщины"
         
-        system_prompt = f"""Ты - профессиональный стилист. Тебя зовут Светлана. Подбери стильный и актуальный образ для: {gender_word} {user_data.get('age')} лет.
+        system_prompt = f"""Ты - профессиональный стилист. Тебя зовут Светлана. Анализируй последние тренды и подбери стильный и актуальный образ для: {gender_word} {user_data.get('age')} лет.
         
         Строго учитывай:
         - Имя: {user_data.get('name')}
