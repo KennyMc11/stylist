@@ -12,8 +12,54 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 from database import Database
 from ai import AIStylist
+from typing import List
 
 load_dotenv()
+
+
+def split_long_message(text: str, max_length: int = 4096) -> List[str]:
+    """
+    Разбивает длинное сообщение на части, не превышающие max_length символов
+    """
+    if len(text) <= max_length:
+        return [text]
+    
+    parts = []
+    current_part = ""
+    
+    # Разбиваем по предложениям
+    sentences = text.replace('!', '!|').replace('?', '?|').replace('.', '.|').split('|')
+    
+    for sentence in sentences:
+        if len(current_part) + len(sentence) <= max_length:
+            current_part += sentence
+        else:
+            if current_part:  # Добавляем накопленную часть
+                parts.append(current_part.strip())
+            current_part = sentence
+            
+            # Если одно предложение длиннее лимита, разбиваем его по словам
+            if len(sentence) > max_length:
+                words = sentence.split()
+                current_part = ""
+                for word in words:
+                    if len(current_part) + len(word) + 1 <= max_length:
+                        current_part += (word + " ")
+                    else:
+                        if current_part:
+                            parts.append(current_part.strip())
+                        current_part = word + " "
+                current_part = current_part.strip()
+    
+    if current_part:  # Добавляем последнюю часть
+        parts.append(current_part.strip())
+    
+    # Добавляем индикатор продолжения
+    for i in range(len(parts) - 1):
+        parts[i] += " (продолжение...)"
+    
+    return parts
+
 
 # Настройка логирования
 logging.basicConfig(
@@ -72,7 +118,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👋 С возвращением! Я всегда готов помочь с выбором образа.\n"
             "Просто напиши мне, что планируешь, и я помогу подобрать идеальный лук!",
             reply_markup=MAIN_KEYBOARD,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         # Включаем режим диалога по умолчанию
         context.user_data['chat_mode'] = True
@@ -88,7 +134,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Имя\n"
             "• Возраст\n"
             "• Город\n\n",
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
 
 async def handle_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -146,13 +192,13 @@ async def handle_registration(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"Теперь мы можем общаться! Просто напиши, куда планируешь пойти, "
             f"и я помогу подобрать образ. Или нажми кнопку ниже:",
             reply_markup=MAIN_KEYBOARD,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         # Включаем режим диалога
         context.user_data['chat_mode'] = True
     else:
         next_q = result.get('next_question') or "Уточните, пожалуйста:"
-        await update.message.reply_text(next_q, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(next_q, parse_mode=ParseMode.MARKDOWN)
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка кнопок"""
@@ -171,7 +217,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
             "Выбери мероприятие:",
             reply_markup=EVENTS_KEYBOARD,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
     elif query.data.startswith("event_"):
@@ -192,7 +238,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # Показываем прогресс
-        progress_msg = await query.message.reply_text(f"⏳ Подбираю образ для {event_name}...")
+        progress_msg = await query.message.reply_text(f"⏳ Подбираю образ для мероприятия: {event_name}...")
         
         # Генерируем образ
         outfit = await ai_stylist.generate_outfit(user, event_name, weather)
@@ -204,22 +250,32 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Формируем ответ
         response = (
-            f"✨ Образ для *{event_name}*\n\n"
+            f"✨ Образ для мероприятия: *{event_name}*\n\n"
             f"{outfit}\n\n"
-            f"📍 {weather['city']}: {weather['temperature']}°C, {weather['description']}"
         )
         
         await progress_msg.delete()
+
+       # Разбиваем длинное сообщение на части
+        message_parts = split_long_message(response)
+
+        # Отправляем первую часть
         await query.message.reply_text(
-            response,
-            parse_mode=ParseMode.HTML
+            message_parts[0],
+            parse_mode=ParseMode.MARKDOWN
         )
+        # Отправляем остальные части
+        for part in message_parts[1:]:
+            await query.message.reply_text(
+                part,
+                parse_mode=ParseMode.MARKDOWN
+            )
         
         # Спрашиваем, нужна ли помощь
         await query.message.reply_text(
             "💬 Что думаешь? Можешь задать вопросы по образу или попросить другой вариант.",
             reply_markup=MAIN_KEYBOARD,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
         # Сохраняем контекст
@@ -263,21 +319,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     # Отправляем ответ
-    await update.message.reply_text(response, parse_mode=ParseMode.HTML)
-    
+    message_parts = split_long_message(response)
+    await update.message.reply_text(
+        message_parts[0],
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+    for part in message_parts[1:]:
+        await update.message.reply_text(
+            part,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
     # Если это был запрос на подбор образа, показываем кнопки с мероприятиями
     if any(word in update.message.text.lower() for word in ['образ', 'подбери', 'подобрать', 'составь', 'скомбинируй', 'выглядеть', 'лук', 'одеть', 'надеть', 'пойти', 'в чем']):
         await update.message.reply_text(
             "Какое мероприятие планируешь?",
             reply_markup=EVENTS_KEYBOARD,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
     else:
         # В остальных случаях просто показываем основную кнопку
         await update.message.reply_text(
             "Если захочешь подобрать образ, просто нажми кнопку ниже:",
             reply_markup=MAIN_KEYBOARD,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
 
 async def exit_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -285,7 +351,7 @@ async def exit_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Готова ответить на твои вопросы!",
         reply_markup=MAIN_KEYBOARD,
-        parse_mode=ParseMode.HTML
+        parse_mode=ParseMode.MARKDOWN
     )
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -293,7 +359,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Чем могу помочь?",
         reply_markup=MAIN_KEYBOARD,
-        parse_mode=ParseMode.HTML
+        parse_mode=ParseMode.MARKDOWN
     )
 
 async def post_init(application: Application):
